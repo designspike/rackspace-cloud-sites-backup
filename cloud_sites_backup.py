@@ -56,7 +56,7 @@ for i, row in enumerate(list_feed.entry):
         print cmd
         subprocess.call(shlex.split(cmd))
 
-cmd = 'rsync -aq '+backup_folder_path+'/cumulative/'
+cmd = 'rsync -aq '+backup_base_path+'/ '+backup_folder_path+'/cumulative/'
 print cmd
 subprocess.call(shlex.split(cmd))
 
