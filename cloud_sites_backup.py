@@ -4,6 +4,7 @@ import gdata.spreadsheet
 import os
 import subprocess
 import shlex
+import sys
 from datetime import date
 import cloud_sites_backup_config as config
 
@@ -31,30 +32,33 @@ for i, row in enumerate(list_feed.entry):
     for column in conf_columns:
         site[column] = row.custom[column].text
         
-    if (not site['ftpuser']):
-        print timestamp(), "No ftp user for row ", i, "...skipping."
-        continue
     
     
     site['backup_path'] = backup_base_path + os.sep + site['ftpuser']
     
     if (not os.path.isdir(site['backup_path'])):
-        print timestamp(), "Making directory:", site['backup_path']
+        print "(row {0}) {1} Making directory: {2}".format(i, timestamp(), site['backup_path'])
         os.makedirs(site['backup_path'])
     
     if (site['dbexternalhost'] and site['dbuser'] and site['dbpw'] and site['dbname']):
-        print timestamp(), "Running mysqldump for %s..." % site['ftpuser']
+        print "(row {0}) {1} Running mysqldump for {2}...".format(i, timestamp(), site['dbuser'])
         cmd = 'mysqldump -u %(dbuser)s -p%(dbpw)s -h %(dbexternalhost)s %(dbname)s -r %(backup_path)s/%(dbname)s.sql' % site
         print cmd
-        subprocess.call(shlex.split(cmd))
-
-	print timestamp(), "Skipping mysql for", site['ftpuser']
+        mysqldump_returncode = subprocess.call(shlex.split(cmd))
+        if mysqldump_returncode != 0:
+            sys.stderr.write("(row {0}) {1} mysqldump for {2} failed - check credentials\n".format(i, timestamp(), site['dbuser']))
+    else:
+        print "(row {0}) {1} No mysql creds supplied...skipping.".format(i, timestamp())
  
     if (site['ftpip'] and site['ftpuser'] and site['ftppw']):
-        print timestamp(), "Running ftp mirror for %s..." % site['ftpuser']
+        print "(row {0}) {1} Running ftp mirror for {2}...".format(i, timestamp(), site['ftpuser'])
         cmd = 'lftp -c "set mirror:parallel-directories true; set mirror:skip-noaccess true; set mirror:parallel-transfer-count 2; open sftp://%(ftpuser)s:%(ftppw)s@%(ftpip)s; mirror --delete / %(backup_path)s/site;"' % site
         print cmd
-        subprocess.call(shlex.split(cmd))
+        lftp_returncode = subprocess.call(shlex.split(cmd))
+        if lftp_returncode != 0:
+            sys.stderr.write("(row {0}) {1} lftp for {2} failed - check credentials\n".format(i, timestamp(), site['ftpuser']))
+    else:
+        print "(row {0}) {1} No ftp creds supplied...skipping.".format(i, timestamp())
 
 cmd = 'rsync -aq '+backup_base_path+'/ '+backup_folder_path+'/cumulative/'
 print cmd
