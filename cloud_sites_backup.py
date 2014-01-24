@@ -5,6 +5,7 @@ import os
 import subprocess
 import shlex
 import sys
+import argparse
 from datetime import date
 import cloud_sites_backup_config as config
 
@@ -12,28 +13,43 @@ def timestamp():
     from time import localtime, strftime
     return strftime("%Y-%m-%d %H:%M:%S", localtime())
 
+parser = argparse.ArgumentParser(description='Make site backups with mysqldump and lftp')
+parser.add_argument('--start-row', help='Number of the spreadsheet row to start at',
+    nargs='?', default=0, type=int)
+
+args = parser.parse_args()
+start_row = args.start_row
+    
 spreadsheet_key = config.SPREADSHEET_KEY
 worksheet_id = config.WORKSHEET_ID
 conf_columns = ['dbexternalhost', 'dbuser', 'dbpw', 'dbname', 'ftpuser', 'ftppw', 'ftpip']
 backup_folder_path = config.BACKUP_FOLDER_PATH
 backup_base_path = backup_folder_path + ("/%s" % date.today().strftime('%A'))
 
+print "{0} Starting spreadsheet connection.".format(timestamp())
 gd_client = gdata.spreadsheet.service.SpreadsheetsService()
 gd_client.email = config.GD_EMAIL
 gd_client.password = config.GD_PASSWORD
 gd_client.source = config.GD_SOURCE
 gd_client.ProgrammaticLogin()
+print "{0} Finished spreadsheet connection.".format(timestamp())
 
 list_feed = gd_client.GetListFeed(spreadsheet_key, worksheet_id)
 
 for i, row in enumerate(list_feed.entry):
+
+    if i < start_row:
+	if i == 0:
+            print "Skipping rows before {0}".format(start_row)
+        continue
+
     site = {}
     
+    print "(row {0}) {1} Starting row".format(i, timestamp())
+
     for column in conf_columns:
         site[column] = row.custom[column].text
         
-    
-    
     site['backup_path'] = backup_base_path + os.sep + site['ftpuser']
     
     if (not os.path.isdir(site['backup_path'])):
