@@ -50,7 +50,7 @@ for i, row in enumerate(list_feed.entry):
     for column in conf_columns:
         site[column] = row.custom[column].text
         
-    site['backup_path'] = backup_base_path + os.sep + site['ftpuser']
+    site['backup_path'] = backup_base_path + os.sep + (site['ftpuser'] if site['ftpuser'] else  site['dbname'])
     
     if (not os.path.isdir(site['backup_path'])):
         print "(row {0}) {1} Making directory: {2}".format(i, timestamp(), site['backup_path'])
